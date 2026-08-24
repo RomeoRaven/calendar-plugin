@@ -1,0 +1,17 @@
+id: calendar
+name: Calendar
+version: 0.0.0
+description: >-
+  Design stub for a self-reliant calendar workspace over protoAgent Scheduler.
+  Implementation is pending; see docs/PLAN.md.
+enabled: false
+min_protoagent_version: "0.147.0"
+repository: https://github.com/RomeoRaven/calendar-plugin
+homepage: https://agent.protolabs.studio
+capabilities:
+  network: []
+  filesystem: none
+config_section: calendar
+subscribes: ["scheduler.fired"]
+views:
+  - { id: main, label: "Calendar", icon: CalendarDays, path: /plugins/calendar/view }
