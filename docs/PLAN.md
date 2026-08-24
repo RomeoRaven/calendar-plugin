@@ -58,6 +58,15 @@ The plugin owns:
 
 Scheduler is the first provider. One-time jobs render directly. For recurring jobs, the plugin may use a pinned, declared recurrence dependency to calculate a bounded display projection from the returned cron expression and timezone. Scheduler's `next_fire` remains authoritative; the plugin never fires or reschedules a job itself. Recurrence parity and DST tests are mandatory before recurring projections are called accurate.
 
+## Persistence boundary
+
+- Start from the selected protoAgent revision's Plugin DevKit scaffold, plugin guide, SDK, and maker-owned examples before choosing any storage design.
+- protoAgent has multiple per-instance stores, not one central SQLite schema for plugins to extend.
+- Calendar should begin without a database: Scheduler remains the authoritative source and the plugin can hold fetched projections in memory.
+- If later requirements justify durable plugin-owned cache or settings state, use a separate `calendar`-namespaced SQLite database through a documented per-instance persistence-path seam. Keep it outside the installed plugin source and make Calendar own its schema, migrations, backup, recovery, and retention.
+- Never open Scheduler's SQLite file, add Calendar tables to a core database, or read another plugin's database. Use documented APIs, SDK functions, tools, and events.
+- If the selected host revision has no supported per-instance persistence-path seam, treat durable caching as unavailable for that revision rather than importing a private path helper or inventing a fixed path.
+
 ## Self-reliant plugin shape
 
 ```text
