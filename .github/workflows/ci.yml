@@ -14,6 +14,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - run: pip install -r requirements-dev.txt ruff
       - run: ruff check . && ruff format --check tests/
       - run: pytest -q
+      - run: node --check view/calendar.js && node --check view/calendar-model.js
+      - run: node --test tests/test_calendar_model.mjs

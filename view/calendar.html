@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Calendar</title>
+  <script>
+    window.__base = location.pathname.split('/plugins/')[0];
+    const kitCss = document.createElement('link');
+    kitCss.rel = 'stylesheet';
+    kitCss.href = window.__base + '/_ds/plugin-kit.css';
+    document.head.appendChild(kitCss);
+    const ownCss = document.createElement('link');
+    ownCss.rel = 'stylesheet';
+    ownCss.href = window.__base + '/plugins/calendar/assets/calendar.css';
+    document.head.appendChild(ownCss);
+  </script>
+</head>
+<body>
+  <main class="calendar-shell" aria-labelledby="calendar-title">
+    <header class="toolbar">
+      <div>
+        <p class="eyebrow">Scheduler workspace</p>
+        <h1 id="calendar-title">Calendar</h1>
+      </div>
+      <div class="toolbar-actions">
+        <button class="pl-button" id="today-button" type="button">Today</button>
+        <button class="pl-button pl-button-primary" id="new-button" type="button">New schedule</button>
+      </div>
+    </header>
+
+    <section class="controls" aria-label="Calendar controls">
+      <div class="nav-group">
+        <button class="icon-button" id="previous-button" type="button" aria-label="Previous period">‹</button>
+        <button class="icon-button" id="next-button" type="button" aria-label="Next period">›</button>
+        <h2 id="period-label" aria-live="polite"></h2>
+      </div>
+      <div class="mode-tabs" role="tablist" aria-label="Calendar view">
+        <button type="button" role="tab" data-mode="month">Month</button>
+        <button type="button" role="tab" data-mode="week">Week</button>
+        <button type="button" role="tab" data-mode="agenda">Agenda</button>
+      </div>
+    </section>
+
+    <div id="error" class="error-strip" role="alert" hidden></div>
+    <div id="loading" class="loading" aria-live="polite">Loading schedules…</div>
+    <section id="calendar-view" class="calendar-view" aria-live="polite"></section>
+  </main>
+
+  <dialog id="schedule-dialog" aria-labelledby="dialog-title">
+    <form id="schedule-form" method="dialog">
+      <header class="dialog-head">
+        <h2 id="dialog-title">New schedule</h2>
+        <button type="button" class="icon-button" id="dialog-close" aria-label="Close">×</button>
+      </header>
+      <input type="hidden" id="edit-id">
+      <label>Prompt<textarea id="prompt" rows="4" required placeholder="What should the agent do?"></textarea></label>
+      <label id="job-id-row">Schedule ID <input id="job-id" maxlength="80" placeholder="Optional stable ID"></label>
+      <label>Schedule type
+        <select id="schedule-type">
+          <option value="once">Once</option>
+          <option value="daily">Daily</option>
+          <option value="weekdays">Weekdays</option>
+          <option value="weekly">Weekly</option>
+          <option value="cron">Custom cron</option>
+        </select>
+      </label>
+      <label id="once-row">Date and time <input id="once-at" type="datetime-local"></label>
+      <label id="time-row" hidden>Time <input id="repeat-time" type="time" value="09:00"></label>
+      <label id="weekday-row" hidden>Weekday
+        <select id="weekday">
+          <option value="1">Monday</option><option value="2">Tuesday</option>
+          <option value="3">Wednesday</option><option value="4">Thursday</option>
+          <option value="5">Friday</option><option value="6">Saturday</option>
+          <option value="0">Sunday</option>
+        </select>
+      </label>
+      <label id="cron-row" hidden>Cron expression <input id="cron" placeholder="0 9 * * 1-5"></label>
+      <label id="timezone-row" hidden>Timezone <input id="timezone" placeholder="America/New_York"></label>
+      <p class="form-help">Recurring entries show Scheduler’s authoritative next occurrence. Calendar never fires jobs itself.</p>
+      <div class="dialog-actions">
+        <button class="pl-button danger" id="delete-button" type="button" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button class="pl-button" id="cancel-button" type="button">Cancel</button>
+        <button class="pl-button pl-button-primary" id="save-button" type="submit">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module">
+    const kit = await import(window.__base + '/_ds/plugin-kit.js');
+    const app = await import(window.__base + '/plugins/calendar/assets/calendar.js');
+    kit.initPluginView(() => app.start(kit));
+  </script>
+</body>
+</html>

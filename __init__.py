@@ -1,47 +1,46 @@
-"""Calendar design stub scaffolded from the protoAgent Plugin DevKit."""
+"""Calendar workspace over protoAgent's public Scheduler API."""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from langchain_core.tools import tool
+
+_ROOT = Path(__file__).resolve().parent
+_VIEW = _ROOT / "view"
 
 
 @tool
 def calendar_status() -> str:
-    """Report the implementation status of the Calendar plugin."""
-    return "calendar-plugin is a design stub; implementation is pending. See docs/PLAN.md."
+    """Describe the Calendar plugin's active capability and ownership boundary."""
+    return (
+        "Calendar provides month, week, and agenda views over protoAgent Scheduler jobs. "
+        "Scheduler remains authoritative for execution, recurrence, persistence, and recovery."
+    )
 
 
 def _page_router():
-    from fastapi import APIRouter
-    from fastapi.responses import HTMLResponse
+    from fastapi import APIRouter, HTTPException
+    from fastapi.responses import FileResponse
 
     router = APIRouter()
+    assets = {
+        "calendar.js": ("calendar.js", "text/javascript"),
+        "calendar.css": ("calendar.css", "text/css"),
+        "calendar-model.js": ("calendar-model.js", "text/javascript"),
+    }
 
     @router.get("/view")
     async def view():
-        return HTMLResponse(
-            "<!doctype html><html><head><meta charset='utf-8'>"
-            "<script>window.__base=location.pathname.split('/plugins/')[0];"
-            "var l=document.createElement('link');l.rel='stylesheet';"
-            "l.href=window.__base+'/_ds/plugin-kit.css';document.head.appendChild(l);</script>"
-            "<style>body{margin:0;padding:32px;background:var(--pl-color-bg);"
-            "color:var(--pl-color-fg);font-family:var(--pl-font-sans,system-ui)}</style>"
-            "</head><body><h1>Calendar</h1><p>Design stub — implementation pending.</p>"
-            "<script type='module'>const kit=await import(window.__base+'/_ds/plugin-kit.js');"
-            "kit.initPluginView();</script></body></html>"
-        )
+        return FileResponse(_VIEW / "calendar.html", media_type="text/html")
 
-    return router
-
-
-def _data_router():
-    from fastapi import APIRouter
-
-    router = APIRouter()
-
-    @router.get("/status")
-    async def status():
-        return {"plugin": "calendar", "status": "design-stub"}
+    @router.get("/assets/{name}")
+    async def asset(name: str):
+        item = assets.get(name)
+        if item is None:
+            raise HTTPException(status_code=404, detail="asset not found")
+        filename, media_type = item
+        return FileResponse(_VIEW / filename, media_type=media_type)
 
     return router
 
@@ -50,4 +49,3 @@ def register(registry) -> None:
     registry.register_tool(calendar_status)
     registry.register_skill_dir("skills")
     registry.register_router(_page_router(), prefix="/plugins/calendar")
-    registry.register_router(_data_router(), prefix="/api/plugins/calendar")
