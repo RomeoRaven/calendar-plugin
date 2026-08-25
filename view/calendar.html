@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Calendar</title>
+  <script>
+    window.__base = location.pathname.split('/plugins/')[0];
+    for (const href of [window.__base + '/_ds/plugin-kit.css', window.__base + '/plugins/calendar/assets/calendar.css']) {
+      const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href; document.head.appendChild(link);
+    }
+  </script>
+</head>
+<body>
+  <main class="calendar-shell" aria-labelledby="calendar-title">
+    <header class="toolbar">
+      <div>
+        <p class="eyebrow">Events and calendars</p>
+        <h1 id="calendar-title">Calendar</h1>
+      </div>
+      <div class="toolbar-actions">
+        <button class="pl-button" id="calendars-button" type="button">Calendars</button>
+        <button class="pl-button" id="today-button" type="button">Today</button>
+        <button class="pl-button pl-button-primary" id="new-button" type="button">New event</button>
+      </div>
+    </header>
+
+    <section class="controls" aria-label="Calendar controls">
+      <div class="nav-group">
+        <button class="icon-button" id="previous-button" type="button" aria-label="Previous period">‹</button>
+        <button class="icon-button" id="next-button" type="button" aria-label="Next period">›</button>
+        <h2 id="period-label" aria-live="polite"></h2>
+      </div>
+      <div class="mode-tabs" role="tablist" aria-label="Calendar view">
+        <button type="button" role="tab" data-mode="month">Month</button>
+        <button type="button" role="tab" data-mode="week">Week</button>
+        <button type="button" role="tab" data-mode="day">Day</button>
+        <button type="button" role="tab" data-mode="agenda">Agenda</button>
+      </div>
+    </section>
+
+    <div id="error" class="error-strip" role="alert" hidden></div>
+    <div id="loading" class="loading" aria-live="polite">Loading calendars…</div>
+    <section id="calendar-view" class="calendar-view" aria-live="polite"></section>
+  </main>
+
+  <dialog id="event-dialog" aria-labelledby="event-dialog-title">
+    <form id="event-form" method="dialog">
+      <header class="dialog-head">
+        <div><p class="dialog-source" id="event-source">My calendar</p><h2 id="event-dialog-title">New event</h2></div>
+        <button type="button" class="icon-button" id="event-close" aria-label="Close">×</button>
+      </header>
+      <input type="hidden" id="event-id">
+      <input type="hidden" id="event-version">
+      <label>Title <input id="event-title" maxlength="300" required placeholder="Birthday, appointment, dinner…"></label>
+      <label class="check-row"><input id="event-all-day" type="checkbox"> All day</label>
+      <div id="timed-rows" class="two-columns">
+        <label>Starts <input id="event-start-time" type="datetime-local"></label>
+        <label>Ends <input id="event-end-time" type="datetime-local"></label>
+      </div>
+      <div id="all-day-rows" class="two-columns" hidden>
+        <label>Starts <input id="event-start-date" type="date"></label>
+        <label>Ends <input id="event-end-date" type="date"></label>
+      </div>
+      <label>Repeats
+        <select id="event-repeat">
+          <option value="none">Does not repeat</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+        </select>
+      </label>
+      <label>Location <input id="event-location" maxlength="500" placeholder="Optional"></label>
+      <label>Notes <textarea id="event-notes" rows="3" maxlength="5000" placeholder="Optional"></textarea></label>
+      <p class="form-help" id="event-help">Events are saved to My calendar.</p>
+      <div class="dialog-actions">
+        <button class="pl-button danger" id="event-delete" type="button" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button class="pl-button" id="event-cancel" type="button">Cancel</button>
+        <button class="pl-button pl-button-primary" id="event-save" type="submit">Save event</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="calendars-dialog" aria-labelledby="calendars-title">
+    <div class="calendar-manager">
+      <header class="dialog-head">
+        <div><p class="dialog-source">Sources</p><h2 id="calendars-title">Calendars</h2></div>
+        <button type="button" class="icon-button" id="calendars-close" aria-label="Close">×</button>
+      </header>
+      <div id="source-list" class="source-list"></div>
+      <form id="source-form" class="source-form">
+        <h3>Add an iCalendar feed</h3>
+        <p class="form-help">Works with Google’s secret iCal address, Apple published calendars, and other HTTPS .ics feeds.</p>
+        <p class="calendar-directory"><a href="https://www.calendarlabs.com/ical-calendar/" target="_blank" rel="noopener noreferrer">Browse optional public calendars at CalendarLabs ↗</a><span>Third-party directory for holidays, sports, religious calendars, and more. Copy an HTTPS iCal subscription URL and paste it below.</span></p>
+        <label>Name <input id="source-name" maxlength="120" required placeholder="Family calendar"></label>
+        <label>iCalendar URL <input id="source-url" type="url" maxlength="2048" required placeholder="https://…/calendar.ics"></label>
+        <label>Color <input id="source-color" type="color" value="#7c3aed"></label>
+        <button class="pl-button pl-button-primary" id="source-add" type="submit">Add calendar</button>
+      </form>
+    </div>
+  </dialog>
+
+  <script type="module">
+    const kit = await import(window.__base + '/_ds/plugin-kit.js');
+    const app = await import(window.__base + '/plugins/calendar/assets/calendar.js');
+    kit.initPluginView(() => app.start(kit));
+  </script>
+</body>
+</html>

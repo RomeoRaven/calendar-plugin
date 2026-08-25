@@ -1,38 +1,64 @@
 # calendar-plugin
 
-Design stub for a self-reliant calendar workspace plugin for [protoAgent](https://github.com/protoLabsAI/protoAgent).
+A self-reliant human Calendar workspace for [protoAgent](https://github.com/protoLabsAI/protoAgent).
 
-Status: **design review only**. The repository contains an importable Plugin DevKit scaffold and the proposed implementation plan; it does not yet provide the planned calendar workspace.
+Status: **v0.3.0 release candidate**. Linux source and live S1-dev acceptance are complete; release and stable installation follow the repository and runtime gates.
 
-## Why it exists
+## What v0.3 provides
 
-The proposed plugin presents Scheduler jobs in month, week, and agenda views while leaving execution, recurrence ownership, persistence, cancellation, and missed-run recovery in protoAgent Scheduler. It is intended to use public Scheduler APIs and the documented plugin view/design-system contracts without changing core.
+- a native visible Calendar rail entry;
+- local all-day and timed human events with title, location, notes, and recurrence;
+- recurring birthdays and daily, weekly, monthly, or yearly events;
+- read-only HTTPS iCalendar subscriptions for Google secret iCal URLs, Apple published calendars, and other `.ics` feeds;
+- a Google Calendar overlay through the public `protoLabsAI/google-plugin` API when that plugin is installed and connected;
+- protoAgent Scheduler next-occurrence overlays without replacing or duplicating Scheduler;
+- month, week, day, and agenda views with visible day/hour boundaries;
+- a single-day 24-hour timeline with a separate all-day lane for daily scheduling and agenda use;
+- a third-party CalendarLabs directory link for finding optional public holiday, sports, religious, and other iCalendar feeds;
+- responsive desktop/mobile presentation.
 
-If Google Calendar access alone satisfies the need, the existing upstream `google-plugin` should be used instead.
+`New event` creates a human event in Calendar's own store. It does not open the Scheduler prompt form.
 
-## Review the proposal
+## Ownership boundary
 
-Read [`docs/PLAN.md`](docs/PLAN.md). Feedback is welcome through [GitHub Issues](https://github.com/RomeoRaven/calendar-plugin/issues).
+Calendar owns a separate instance-scoped SQLite database for local events and imported iCalendar snapshots. It never adds tables to a protoAgent core database or reads another plugin's database.
 
-## Current stub
+- Calendar owns human events, subscribed calendar sources, visual recurrence projection, and its UI.
+- protoAgent Scheduler owns agent schedule execution and remains read-only in Calendar.
+- [`google-plugin`](https://github.com/protoLabsAI/google-plugin) owns Google OAuth and Google Calendar operations. Calendar composes its authenticated public HTTP API; it does not import or duplicate Google internals.
+- iCalendar subscriptions are read-only and explicitly refreshed by the operator.
 
-The scaffold follows the upstream protoAgent Plugin DevKit contract and contributes only:
+The bounded v0.3 iCalendar parser handles VEVENT start/end, all-day and timed events, text fields, and common DAILY/WEEKLY/MONTHLY/YEARLY RRULE projection. Recurrence exceptions (`EXDATE`, `RDATE`, overridden instances) and full RFC 5545 parity remain later work and are not claimed.
 
-- a placeholder console view;
-- `calendar_status`, which reports that implementation is pending;
-- host-free scaffold tests and CI.
+## Security
+
+- Plugin data APIs are bearer-gated by protoAgent's normal API boundary.
+- Feed URLs must be HTTPS (`webcal://` is upgraded) and resolve only to public IP addresses.
+- Redirect targets are revalidated, fetches time out, and responses are capped at 2 MiB.
+- Feed URLs are stored only in instance-local Calendar state and are not returned to the browser after creation; the UI receives only the hostname.
 
 ## Compatibility
 
-Design target: protoAgent `v0.147.0` or later. No release or production compatibility claim is made yet.
+Development target: protoAgent `v0.147.0` or later. Install from an exact Git commit into an isolated development instance; the author default remains disabled.
 
 ## Platform status
 
 | Platform | Status | Evidence / follow-up |
 |---|---|---|
-| Linux | Tested | Host-free scaffold tests only |
-| Windows | Not tested | Native qualification after implementation |
-| macOS | Not tested | Qualification after implementation |
+| Linux | Tested | Host-free gates plus isolated S1-dev API, desktop/mobile UI, restart, persistence, and state-preservation acceptance at `32e3dbf` |
+| Windows | Not tested | Native qualification after Dennis accepts S1-dev |
+| macOS | Not tested | Qualification remains separate |
+
+## Development
+
+```bash
+python -m pytest -q
+ruff check .
+ruff format --check .
+node --check view/calendar.js
+node --check view/calendar-model.js
+node --test tests/test_calendar_model.mjs
+```
 
 ## License
 

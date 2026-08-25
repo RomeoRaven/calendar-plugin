@@ -1,8 +1,19 @@
 ---
 name: calendar
-summary: Use after Calendar is implemented for its calendar workspace.
+description: Use Calendar for human events, calendar feeds, and schedule overlays.
+summary: Manage human events and view external calendars with Scheduler context.
 ---
 
 # Calendar
 
-This plugin is currently a design stub. Do not claim calendar capability until implementation and qualification are complete. The proposed behavior is documented in `docs/PLAN.md`.
+Use the native Calendar rail for real-world events and external calendars.
+
+- **My calendar** owns editable all-day or timed events, including yearly birthdays and daily, weekly, monthly, or yearly recurrence.
+- **iCalendar feeds** pull read-only events from operator-provided HTTPS or `webcal://` calendar URLs. Google secret iCal addresses, Apple published calendars, and standards-compatible `.ics` feeds use this route.
+- **Google Calendar** appears through the Google Workspace plugin's public API when that plugin is installed and connected.
+- **Scheduler** contributes each agent job's authoritative next occurrence as a read-only overlay; edit the underlying job in Scheduler.
+- **Day** shows one date as an all-day lane plus a 24-hour schedule; Previous and Next move one day.
+- **Optional calendars** can be discovered from the linked CalendarLabs public directory, then added by pasting the selected HTTPS iCalendar URL.
+- Use the `calendar_event_create`, `calendar_event_list`, and `calendar_status` tools when an agent needs to create or inspect human events.
+
+Treat subscribed and Google events as read-only. CalendarLabs is a third-party directory, not a protoAgent service or trust endorsement. The v0.3 parser covers common event fields and recurrence, not complete RFC 5545 exception/attendee semantics.
