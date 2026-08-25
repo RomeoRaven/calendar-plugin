@@ -1,9 +1,9 @@
 id: calendar
 name: Calendar
-version: 0.2.0
+version: 0.3.0
 description: >-
   Human events, iCalendar subscriptions, Google Calendar overlay, and Scheduler
-  occurrences in one month, week, and agenda workspace.
+  occurrences in one month, week, day, and agenda workspace.
 enabled: false
 min_protoagent_version: "0.147.0"
 repository: https://github.com/RomeoRaven/calendar-plugin

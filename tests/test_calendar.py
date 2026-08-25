@@ -21,7 +21,7 @@ def test_register_contributes_tools_skill_and_two_routers(plugin, registry):
 def test_manifest_is_human_calendar_shape():
     manifest = yaml.safe_load((ROOT / "protoagent.plugin.yaml").read_text(encoding="utf-8"))
     assert manifest["id"] == "calendar"
-    assert manifest["version"] == "0.2.0"
+    assert manifest["version"] == "0.3.0"
     assert manifest["enabled"] is False
     assert manifest["public_paths"] == ["/plugins/calendar/assets/"]
     assert manifest["subscribes"] == ["scheduler.fired"]
@@ -44,6 +44,9 @@ def test_page_assets_and_data_routes(plugin, tmp_path):
     assert page.status_code == 200
     assert "New event" in page.text
     assert "New schedule" not in page.text
+    assert 'data-mode="day"' in page.text
+    assert "https://www.calendarlabs.com/ical-calendar/" in page.text
+    assert 'rel="noopener noreferrer"' in page.text
     for name in ("calendar.js", "calendar.css", "calendar-model.js"):
         assert client.get(f"/plugins/calendar/assets/{name}").status_code == 200
     assert client.get("/plugins/calendar/assets/secret.txt").status_code == 404
@@ -155,3 +158,5 @@ def test_browser_uses_calendar_data_google_and_scheduler_apis():
     assert '"/api/scheduler/jobs"' in source
     assert "calendar.db" not in source
     assert "New schedule" not in source
+    assert "function renderDay" in source
+    assert "Daily schedule" in source

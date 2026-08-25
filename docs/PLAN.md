@@ -1,4 +1,4 @@
-# Calendar plugin — v0.2 S1-dev contract
+# Calendar plugin — v0.3 S1-dev contract
 
 Status: Implementation and qualification isolated to S1-dev
 Date: 2026-08-25
@@ -26,9 +26,11 @@ Scheduler remains useful context, but it is not Calendar's event model and Calen
 - iCalendar imports validate every HTTPS destination/redirect against public addresses, cap reads at 2 MiB, and persist refresh errors visibly.
 - Feed URLs are never returned by source-list APIs; only their hostname is exposed.
 
-## v0.2 scope
+## v0.3 scope
 
-- Month, week, and agenda views with subtle explicit day borders.
+- Month, week, day, and agenda views with subtle explicit day/hour borders.
+- Day view uses one all-day lane plus a 24-hour timeline and advances one day at a time.
+- Calendars manager links one verified third-party directory, CalendarLabs, for discovering optional public iCalendar subscriptions.
 - Local event create/edit/delete with optimistic versions.
 - All-day/timed semantics, location, notes, and common daily/weekly/monthly/yearly recurrence.
 - Birthday support through yearly all-day events.

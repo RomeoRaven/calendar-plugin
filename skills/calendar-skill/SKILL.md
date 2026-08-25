@@ -12,6 +12,8 @@ Use the native Calendar rail for real-world events and external calendars.
 - **iCalendar feeds** pull read-only events from operator-provided HTTPS or `webcal://` calendar URLs. Google secret iCal addresses, Apple published calendars, and standards-compatible `.ics` feeds use this route.
 - **Google Calendar** appears through the Google Workspace plugin's public API when that plugin is installed and connected.
 - **Scheduler** contributes each agent job's authoritative next occurrence as a read-only overlay; edit the underlying job in Scheduler.
+- **Day** shows one date as an all-day lane plus a 24-hour schedule; Previous and Next move one day.
+- **Optional calendars** can be discovered from the linked CalendarLabs public directory, then added by pasting the selected HTTPS iCalendar URL.
 - Use the `calendar_event_create`, `calendar_event_list`, and `calendar_status` tools when an agent needs to create or inspect human events.
 
-Treat subscribed and Google events as read-only. The v0.2 parser covers common event fields and recurrence, not complete RFC 5545 exception/attendee semantics.
+Treat subscribed and Google events as read-only. CalendarLabs is a third-party directory, not a protoAgent service or trust endorsement. The v0.3 parser covers common event fields and recurrence, not complete RFC 5545 exception/attendee semantics.

@@ -112,7 +112,9 @@ function allEvents() { return [...state.events, ...state.google.events]; }
 function step(direction) {
   const date = state.anchor;
   if (state.mode === "month") state.anchor = new Date(date.getFullYear(), date.getMonth() + direction, 1);
-  else state.anchor = addDays(date, direction * (state.mode === "week" ? 7 : 30));
+  else if (state.mode === "week") state.anchor = addDays(date, direction * 7);
+  else if (state.mode === "day") state.anchor = addDays(date, direction);
+  else state.anchor = addDays(date, direction * 30);
   render();
 }
 
@@ -124,6 +126,7 @@ function render() {
   const view = el("calendar-view");
   if (state.mode === "month") renderMonth(view);
   else if (state.mode === "week") renderWeek(view);
+  else if (state.mode === "day") renderDay(view);
   else renderAgenda(view);
 }
 
@@ -148,6 +151,26 @@ function renderWeek(view) {
   const byDay = groupByDay(rangeOccurrences(days[0].date, addDays(days[6].date, 1)));
   view.className = "calendar-view week-view";
   view.innerHTML = days.map((day) => `<section class="week-column${day.key === localDateKey(new Date()) ? " today" : ""}"><h3>${esc(fmtDay(day.date))}</h3><div class="event-stack">${eventButtons(byDay.get(day.key) || [], "No events")}</div></section>`).join("");
+}
+
+function renderDay(view) {
+  const start = new Date(state.anchor.getFullYear(), state.anchor.getMonth(), state.anchor.getDate());
+  const end = addDays(start, 1);
+  const items = rangeOccurrences(start, end);
+  const allDay = items.filter((item) => item.event.all_day);
+  const byHour = new Map();
+  items.filter((item) => !item.event.all_day).forEach((item) => {
+    const hour = item.date.getHours();
+    if (!byHour.has(hour)) byHour.set(hour, []);
+    byHour.get(hour).push(item);
+  });
+  el("period-label").textContent = start.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  view.className = "calendar-view day-view";
+  view.innerHTML = `<section class="all-day-lane"><h3>All day</h3><div class="event-stack">${eventButtons(allDay, "No all-day events")}</div></section><section class="day-timeline" aria-label="Daily schedule">${Array.from({ length: 24 }, (_, hour) => {
+    const label = new Date(2000, 0, 1, hour).toLocaleTimeString([], { hour: "numeric" });
+    const current = hour === new Date().getHours() && localDateKey(start) === localDateKey(new Date());
+    return `<div class="hour-row${current ? " current-hour" : ""}"><time class="hour-label">${esc(label)}</time><div class="hour-events">${eventButtons(byHour.get(hour) || [], "")}</div></div>`;
+  }).join("")}</section>`;
 }
 
 function renderAgenda(view) {

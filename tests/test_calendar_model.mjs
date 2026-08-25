@@ -23,6 +23,16 @@ test("human events and Scheduler occurrences coexist", () => {
   assert.equal(rows[1].event.source_kind, "scheduler");
 });
 
+test("a one-day range is suitable for the Day timeline", () => {
+  const events = [
+    { id: "all", title: "Birthday", starts_at: "2026-08-27", ends_at: "2026-08-28", all_day: true, rrule: "" },
+    { id: "timed", title: "Appointment", starts_at: "2026-08-27T10:00:00", ends_at: "2026-08-27T11:00:00", all_day: false, rrule: "" },
+    { id: "other", title: "Tomorrow", starts_at: "2026-08-28T10:00:00", ends_at: "2026-08-28T11:00:00", all_day: false, rrule: "" },
+  ];
+  const rows = calendarOccurrences(events, [], new Date(2026, 7, 27), new Date(2026, 7, 28));
+  assert.deepEqual(rows.map((row) => row.event.id), ["all", "timed"]);
+});
+
 test("yearly birthdays expand into the visible year", () => {
   const event = { id: "birthday", title: "Birthday", starts_at: "1980-09-12", ends_at: "1980-09-13", all_day: true, rrule: "FREQ=YEARLY" };
   const rows = calendarOccurrences([event], [], new Date(2026, 8, 1), new Date(2026, 9, 1));

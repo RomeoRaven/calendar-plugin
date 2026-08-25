@@ -34,6 +34,7 @@
       <div class="mode-tabs" role="tablist" aria-label="Calendar view">
         <button type="button" role="tab" data-mode="month">Month</button>
         <button type="button" role="tab" data-mode="week">Week</button>
+        <button type="button" role="tab" data-mode="day">Day</button>
         <button type="button" role="tab" data-mode="agenda">Agenda</button>
       </div>
     </section>
@@ -92,6 +93,7 @@
       <form id="source-form" class="source-form">
         <h3>Add an iCalendar feed</h3>
         <p class="form-help">Works with Google’s secret iCal address, Apple published calendars, and other HTTPS .ics feeds.</p>
+        <p class="calendar-directory"><a href="https://www.calendarlabs.com/ical-calendar/" target="_blank" rel="noopener noreferrer">Browse optional public calendars at CalendarLabs ↗</a><span>Third-party directory for holidays, sports, religious calendars, and more. Copy an HTTPS iCal subscription URL and paste it below.</span></p>
         <label>Name <input id="source-name" maxlength="120" required placeholder="Family calendar"></label>
         <label>iCalendar URL <input id="source-url" type="url" maxlength="2048" required placeholder="https://…/calendar.ics"></label>
         <label>Color <input id="source-color" type="color" value="#7c3aed"></label>

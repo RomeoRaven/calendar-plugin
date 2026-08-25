@@ -2,9 +2,9 @@
 
 A self-reliant human Calendar workspace for [protoAgent](https://github.com/protoLabsAI/protoAgent).
 
-Status: **v0.2 S1-dev candidate**. It is not released or approved for stable use.
+Status: **v0.3 S1-dev candidate**. It is not released or approved for stable use.
 
-## What v0.2 provides
+## What v0.3 provides
 
 - a native visible Calendar rail entry;
 - local all-day and timed human events with title, location, notes, and recurrence;
@@ -12,7 +12,9 @@ Status: **v0.2 S1-dev candidate**. It is not released or approved for stable use
 - read-only HTTPS iCalendar subscriptions for Google secret iCal URLs, Apple published calendars, and other `.ics` feeds;
 - a Google Calendar overlay through the public `protoLabsAI/google-plugin` API when that plugin is installed and connected;
 - protoAgent Scheduler next-occurrence overlays without replacing or duplicating Scheduler;
-- month, week, and agenda views with visible day boundaries;
+- month, week, day, and agenda views with visible day/hour boundaries;
+- a single-day 24-hour timeline with a separate all-day lane for daily scheduling and agenda use;
+- a third-party CalendarLabs directory link for finding optional public holiday, sports, religious, and other iCalendar feeds;
 - responsive desktop/mobile presentation.
 
 `New event` creates a human event in Calendar's own store. It does not open the Scheduler prompt form.
@@ -26,7 +28,7 @@ Calendar owns a separate instance-scoped SQLite database for local events and im
 - [`google-plugin`](https://github.com/protoLabsAI/google-plugin) owns Google OAuth and Google Calendar operations. Calendar composes its authenticated public HTTP API; it does not import or duplicate Google internals.
 - iCalendar subscriptions are read-only and explicitly refreshed by the operator.
 
-The bounded v0.2 iCalendar parser handles VEVENT start/end, all-day and timed events, text fields, and common DAILY/WEEKLY/MONTHLY/YEARLY RRULE projection. Recurrence exceptions (`EXDATE`, `RDATE`, overridden instances) and full RFC 5545 parity remain later work and are not claimed.
+The bounded v0.3 iCalendar parser handles VEVENT start/end, all-day and timed events, text fields, and common DAILY/WEEKLY/MONTHLY/YEARLY RRULE projection. Recurrence exceptions (`EXDATE`, `RDATE`, overridden instances) and full RFC 5545 parity remain later work and are not claimed.
 
 ## Security
 
