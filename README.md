@@ -2,7 +2,7 @@
 
 A self-reliant human Calendar workspace for [protoAgent](https://github.com/protoLabsAI/protoAgent).
 
-Status: **v0.3 S1-dev candidate**. It is not released or approved for stable use.
+Status: **v0.3.0 release candidate**. Linux source and live S1-dev acceptance are complete; release and stable installation follow the repository and runtime gates.
 
 ## What v0.3 provides
 
@@ -45,7 +45,7 @@ Development target: protoAgent `v0.147.0` or later. Install from an exact Git co
 
 | Platform | Status | Evidence / follow-up |
 |---|---|---|
-| Linux | In S1-dev qualification | Host-free gates plus isolated S1-dev UI/API/persistence acceptance |
+| Linux | Tested | Host-free gates plus isolated S1-dev API, desktop/mobile UI, restart, persistence, and state-preservation acceptance at `32e3dbf` |
 | Windows | Not tested | Native qualification after Dennis accepts S1-dev |
 | macOS | Not tested | Qualification remains separate |
 
