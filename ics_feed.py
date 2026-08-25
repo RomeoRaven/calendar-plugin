@@ -42,7 +42,7 @@ def fetch_ics(raw_url: str) -> tuple[str, str]:
     url = _safe_url(raw_url)
     opener = urllib.request.build_opener(_NoRedirect)
     for _ in range(4):
-        req = urllib.request.Request(url, headers={"User-Agent": "protoAgent-Calendar/0.2", "Accept": "text/calendar"})
+        req = urllib.request.Request(url, headers={"User-Agent": "protoAgent-Calendar/0.3", "Accept": "text/calendar"})
         try:
             with opener.open(req, timeout=15) as response:
                 length = int(response.headers.get("Content-Length", "0") or 0)
