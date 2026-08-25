@@ -1,15 +1,16 @@
 id: calendar
 name: Calendar
-version: 0.1.0
+version: 0.2.0
 description: >-
-  A self-reliant month, week, and agenda workspace over protoAgent Scheduler.
+  Human events, iCalendar subscriptions, Google Calendar overlay, and Scheduler
+  occurrences in one month, week, and agenda workspace.
 enabled: false
 min_protoagent_version: "0.147.0"
 repository: https://github.com/RomeoRaven/calendar-plugin
 homepage: https://agent.protolabs.studio
 capabilities:
-  network: []
-  filesystem: none
+  network: [operator-configured HTTPS iCalendar feeds]
+  filesystem: instance-scoped calendar state
 public_paths:
   - /plugins/calendar/assets/
 subscribes: ["scheduler.fired"]

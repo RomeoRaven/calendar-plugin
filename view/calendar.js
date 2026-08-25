@@ -1,86 +1,125 @@
-import { formFromJob, localDateKey, monthGrid, occurrences, scheduleFromForm, weekDays } from "./calendar-model.js";
+import { calendarOccurrences, eventFormPayload, formFromEvent, localDateKey, monthGrid, parseCalendarDate, weekDays } from "./calendar-model.js";
 
 let kit;
 let started = false;
-const state = { jobs: [], mode: localStorage.getItem("calendar.mode") || "month", anchor: new Date(), busy: false };
+const state = {
+  events: [], jobs: [], sources: [], google: { available: false, configured: false, events: [], error: "" },
+  mode: localStorage.getItem("calendar.mode") || "month", anchor: new Date(), busy: false,
+};
 const el = (id) => document.getElementById(id);
 const esc = (text) => String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const fmtTime = (date) => date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 const fmtDay = (date) => date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+const addDays = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 
 export function start(pluginKit) {
   kit = pluginKit;
   if (started) return;
   started = true;
-  bind();
-  render();
-  loadJobs();
+  bind(); render(); loadAll();
 }
 
 function bind() {
   document.querySelectorAll("[data-mode]").forEach((button) => button.addEventListener("click", () => {
-    state.mode = button.dataset.mode;
-    localStorage.setItem("calendar.mode", state.mode);
-    render();
+    state.mode = button.dataset.mode; localStorage.setItem("calendar.mode", state.mode); render();
   }));
   el("previous-button").addEventListener("click", () => step(-1));
   el("next-button").addEventListener("click", () => step(1));
   el("today-button").addEventListener("click", () => { state.anchor = new Date(); render(); });
-  el("new-button").addEventListener("click", () => openDialog());
-  el("dialog-close").addEventListener("click", closeDialog);
-  el("cancel-button").addEventListener("click", closeDialog);
-  el("schedule-type").addEventListener("change", syncFormRows);
-  el("schedule-form").addEventListener("submit", saveSchedule);
-  el("delete-button").addEventListener("click", deleteSchedule);
+  el("new-button").addEventListener("click", () => openEvent());
+  el("calendars-button").addEventListener("click", openCalendars);
+  el("event-close").addEventListener("click", closeEvent);
+  el("event-cancel").addEventListener("click", closeEvent);
+  el("event-all-day").addEventListener("change", syncEventRows);
+  el("event-form").addEventListener("submit", saveEvent);
+  el("event-delete").addEventListener("click", deleteEvent);
+  el("calendars-close").addEventListener("click", () => { if (!state.busy) el("calendars-dialog").close(); });
+  el("source-form").addEventListener("submit", addSource);
+  el("source-list").addEventListener("click", sourceAction);
   el("calendar-view").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-job]");
+    const button = event.target.closest("[data-event]");
     if (!button) return;
-    openDialog(state.jobs.find((job) => job.id === button.dataset.job));
+    const item = allEvents().find((value) => value.id === button.dataset.event);
+    if (item) openEvent(item);
   });
   window.addEventListener("message", (event) => {
-    if (event.data?.type === "protoagent:event" && event.data.topic === "scheduler.fired") loadJobs(true);
+    if (event.data?.type === "protoagent:event" && event.data.topic === "scheduler.fired") loadAll(true);
   });
   parent.postMessage({ type: "protoagent:subscribe", patterns: ["scheduler.fired"] }, "*");
   window.addEventListener("keydown", (event) => {
     if (event.key === "n" && !event.metaKey && !event.ctrlKey && !event.altKey && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) {
-      event.preventDefault(); openDialog(); return;
+      event.preventDefault(); openEvent(); return;
     }
     const combo = [event.metaKey || event.ctrlKey ? "mod" : "", event.shiftKey ? "shift" : "", event.altKey ? "alt" : "", event.key.toLowerCase()].filter(Boolean).join("+");
     parent.postMessage({ type: "protoagent:keydown", combo, editable: /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "") }, "*");
   });
 }
 
-async function loadJobs(quiet = false, required = false) {
+async function apiJson(path, options = {}, optional = false) {
+  const response = await kit.apiFetch(path, options);
+  if (optional && response.status === 404) return null;
+  if (!response.ok) {
+    let detail = `HTTP ${response.status}`;
+    try { const payload = await response.json(); detail = payload.detail || payload.error || detail; } catch {}
+    throw new Error(detail);
+  }
+  return response.status === 204 ? null : response.json();
+}
+
+async function loadAll(quiet = false, required = false) {
   if (!quiet) el("loading").hidden = false;
   try {
-    const response = await kit.apiFetch("/api/scheduler/jobs");
-    if (!response.ok) throw new Error(`Scheduler returned HTTP ${response.status}.`);
-    const body = await response.json();
-    state.jobs = Array.isArray(body.jobs) ? body.jobs : [];
-    showError("");
-    render();
+    const [calendar, sources, scheduler] = await Promise.all([
+      apiJson("/api/plugins/calendar/events"), apiJson("/api/plugins/calendar/sources"), apiJson("/api/scheduler/jobs"),
+    ]);
+    state.events = calendar.events || [];
+    state.sources = sources.sources || [];
+    state.jobs = scheduler.jobs || [];
+    await loadGoogle();
+    showError(""); render();
+    if (el("calendars-dialog").open) renderSources();
     return true;
   } catch (error) {
-    showError(`Could not load schedules: ${error.message}`);
+    showError(`Could not load calendars: ${error.message}`);
     if (required) throw error;
     return false;
-  } finally {
-    el("loading").hidden = true;
+  } finally { el("loading").hidden = true; }
+}
+
+async function loadGoogle() {
+  state.google = { available: false, configured: false, events: [], error: "" };
+  try {
+    const status = await apiJson("/api/plugins/google/status", {}, true);
+    if (!status) return;
+    state.google.available = true;
+    state.google.configured = Boolean(status.configured);
+    if (!status.configured) return;
+    const upcoming = await apiJson("/api/plugins/google/upcoming", {}, true);
+    if (!upcoming) return;
+    state.google.error = upcoming.error || "";
+    state.google.events = (upcoming.events || []).map((event) => ({
+      id: `google:${event.id}`, title: event.title || "Untitled Google event", starts_at: event.start,
+      ends_at: event.end || event.start, all_day: !String(event.start || "").includes("T"),
+      location: event.location || "", notes: "", rrule: "", readonly: true,
+      source_kind: "google", source_name: "Google Calendar", source_color: "#16a34a", link: event.link || "",
+    }));
+  } catch (error) {
+    state.google.available = true; state.google.error = error.message;
   }
 }
 
+function allEvents() { return [...state.events, ...state.google.events]; }
 function step(direction) {
   const date = state.anchor;
   if (state.mode === "month") state.anchor = new Date(date.getFullYear(), date.getMonth() + direction, 1);
-  else state.anchor = new Date(date.getFullYear(), date.getMonth(), date.getDate() + direction * (state.mode === "week" ? 7 : 30));
+  else state.anchor = addDays(date, direction * (state.mode === "week" ? 7 : 30));
   render();
 }
 
 function render() {
   document.querySelectorAll("[data-mode]").forEach((button) => {
     const active = button.dataset.mode === state.mode;
-    button.setAttribute("aria-selected", String(active));
-    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active)); button.classList.toggle("active", active);
   });
   const view = el("calendar-view");
   if (state.mode === "month") renderMonth(view);
@@ -88,35 +127,38 @@ function render() {
   else renderAgenda(view);
 }
 
+function rangeOccurrences(start, end) { return calendarOccurrences(allEvents(), state.jobs, start, end); }
+function groupByDay(items) {
+  const grouped = new Map();
+  items.forEach((item) => { if (!grouped.has(item.key)) grouped.set(item.key, []); grouped.get(item.key).push(item); });
+  return grouped;
+}
+
 function renderMonth(view) {
   el("period-label").textContent = state.anchor.toLocaleDateString([], { month: "long", year: "numeric" });
-  const byDay = groupByDay();
+  const cells = monthGrid(state.anchor);
+  const byDay = groupByDay(rangeOccurrences(cells[0].date, addDays(cells.at(-1).date, 1)));
   view.className = "calendar-view month-view";
-  view.innerHTML = `<div class="weekday-head">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<span>${d}</span>`).join("")}</div><div class="month-grid">${monthGrid(state.anchor).map((cell) => dayCell(cell, byDay.get(cell.key) || [])).join("")}</div>`;
+  view.innerHTML = `<div class="weekday-head">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<span>${d}</span>`).join("")}</div><div class="month-grid">${cells.map((cell) => dayCell(cell, byDay.get(cell.key) || [])).join("")}</div>`;
 }
 
 function renderWeek(view) {
   const days = weekDays(state.anchor);
   el("period-label").textContent = `${fmtDay(days[0].date)} – ${fmtDay(days[6].date)}`;
-  const byDay = groupByDay();
+  const byDay = groupByDay(rangeOccurrences(days[0].date, addDays(days[6].date, 1)));
   view.className = "calendar-view week-view";
-  view.innerHTML = days.map((day) => `<section class="week-column"><h3>${esc(fmtDay(day.date))}</h3><div class="event-stack">${eventButtons(byDay.get(day.key) || [], "No schedules")}</div></section>`).join("");
+  view.innerHTML = days.map((day) => `<section class="week-column${day.key === localDateKey(new Date()) ? " today" : ""}"><h3>${esc(fmtDay(day.date))}</h3><div class="event-stack">${eventButtons(byDay.get(day.key) || [], "No events")}</div></section>`).join("");
 }
 
 function renderAgenda(view) {
-  el("period-label").textContent = "Upcoming schedules";
-  const items = occurrences(state.jobs).filter((item) => item.date >= new Date(Date.now() - 86400000));
+  el("period-label").textContent = "Upcoming events";
+  const start = addDays(new Date(), -1);
+  const items = rangeOccurrences(start, addDays(start, 366));
   view.className = "calendar-view agenda-view";
-  view.innerHTML = items.length ? items.map((item) => `<button class="agenda-row" type="button" data-job="${esc(item.job.id)}"><time datetime="${esc(item.date.toISOString())}">${esc(fmtDay(item.date))}<strong>${esc(fmtTime(item.date))}</strong></time><span><strong>${esc(item.job.prompt)}</strong><small>${item.recurring ? "Recurring · next occurrence" : "One time"}${item.job.timezone ? ` · ${esc(item.job.timezone)}` : ""}</small></span></button>`).join("") : empty("No upcoming schedules");
-}
-
-function groupByDay() {
-  const grouped = new Map();
-  occurrences(state.jobs).forEach((item) => {
-    if (!grouped.has(item.key)) grouped.set(item.key, []);
-    grouped.get(item.key).push(item);
-  });
-  return grouped;
+  view.innerHTML = items.length ? items.map((item) => {
+    const event = item.event;
+    return `<button class="agenda-row" type="button" data-event="${esc(event.id)}"><time datetime="${esc(item.date.toISOString())}">${esc(fmtDay(item.date))}<strong>${event.all_day ? "All day" : esc(fmtTime(item.date))}</strong></time><span><strong>${esc(event.title)}</strong><small><i style="--source:${esc(event.source_color || "#2563eb")}"></i>${esc(event.source_name || "My calendar")}${item.recurring ? " · recurring" : ""}${event.location ? ` · ${esc(event.location)}` : ""}</small></span></button>`;
+  }).join("") : empty("No upcoming events");
 }
 
 function dayCell(cell, items) {
@@ -126,82 +168,137 @@ function dayCell(cell, items) {
 
 function eventButtons(items, fallback) {
   if (!items.length) return fallback ? `<span class="empty-inline">${esc(fallback)}</span>` : "";
-  return items.map((item) => `<button class="event-chip${item.recurring ? " recurring" : ""}" type="button" data-job="${esc(item.job.id)}" title="${esc(item.job.prompt)}"><time>${esc(fmtTime(item.date))}</time><span>${esc(item.job.prompt)}</span></button>`).join("");
+  return items.map((item) => {
+    const event = item.event;
+    return `<button class="event-chip ${esc(event.source_kind || "local")}" style="--source:${esc(event.source_color || "#2563eb")}" type="button" data-event="${esc(event.id)}" title="${esc(event.title)}"><time>${event.all_day ? "All day" : esc(fmtTime(item.date))}</time><span>${esc(event.title)}</span></button>`;
+  }).join("");
 }
 
 function empty(text) { return `<div class="empty-state"><span aria-hidden="true">◫</span><p>${esc(text)}</p></div>`; }
 function showError(message) { el("error").textContent = message; el("error").hidden = !message; }
 
-function openDialog(job = null) {
-  const values = job ? formFromJob(job) : { type: "once", onceAt: nextHour(), time: "09:00", weekday: "1", cron: "", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "" };
-  el("dialog-title").textContent = job ? "Edit schedule" : "New schedule";
-  el("edit-id").value = job?.id || "";
-  el("prompt").value = job?.prompt || "";
-  el("job-id").value = "";
-  el("job-id-row").hidden = Boolean(job);
-  el("schedule-type").value = values.type;
-  el("once-at").value = values.onceAt || "";
-  el("repeat-time").value = values.time || "09:00";
-  el("weekday").value = values.weekday || "1";
-  el("cron").value = values.cron || "";
-  el("timezone").value = values.timezone || "";
-  el("delete-button").hidden = !job;
-  syncFormRows();
-  el("schedule-dialog").showModal();
-  el("prompt").focus();
+function openEvent(event = null) {
+  const readonly = Boolean(event?.readonly);
+  const defaults = event ? formFromEvent(event) : newEventDefaults();
+  el("event-dialog-title").textContent = event ? event.title : "New event";
+  el("event-source").textContent = event?.source_name || "My calendar";
+  el("event-id").value = event?.id || "";
+  el("event-version").value = event?.version || "";
+  el("event-title").value = defaults.title;
+  el("event-all-day").checked = defaults.allDay;
+  el("event-start-date").value = defaults.startDate;
+  el("event-end-date").value = defaults.endDate;
+  el("event-start-time").value = defaults.startDateTime;
+  el("event-end-time").value = defaults.endDateTime;
+  el("event-repeat").value = defaults.repeat;
+  el("event-location").value = defaults.location;
+  el("event-notes").value = defaults.notes;
+  el("event-delete").hidden = !event || readonly;
+  el("event-save").hidden = readonly;
+  el("event-help").textContent = readonly ? `${event.source_name || "Subscribed calendar"} events are read-only here.` : "Events are saved to My calendar.";
+  el("event-form").querySelectorAll("input,textarea,select").forEach((node) => { node.disabled = readonly; });
+  syncEventRows();
+  el("event-dialog").showModal();
+  if (!readonly) el("event-title").focus();
 }
 
-function closeDialog() { if (!state.busy) el("schedule-dialog").close(); }
-function syncFormRows() {
-  const type = el("schedule-type").value;
-  el("once-row").hidden = type !== "once";
-  el("time-row").hidden = !["daily", "weekdays", "weekly"].includes(type);
-  el("weekday-row").hidden = type !== "weekly";
-  el("cron-row").hidden = type !== "cron";
-  el("timezone-row").hidden = type === "once";
+function newEventDefaults() {
+  const start = new Date(Date.now() + 3600000); start.setMinutes(0, 0, 0);
+  const end = new Date(start.getTime() + 3600000);
+  const dateValue = (value) => `${localDateKey(value)}T${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
+  return { title: "", allDay: false, startDate: localDateKey(start), endDate: localDateKey(addDays(start, 1)), startDateTime: dateValue(start), endDateTime: dateValue(end), location: "", notes: "", repeat: "none" };
 }
 
-async function saveSchedule(event) {
+function closeEvent() { if (!state.busy) el("event-dialog").close(); }
+function syncEventRows() {
+  const allDay = el("event-all-day").checked;
+  el("timed-rows").hidden = allDay; el("all-day-rows").hidden = !allDay;
+}
+
+async function saveEvent(event) {
   event.preventDefault();
-  const editId = el("edit-id").value;
   try {
-    const schedule = scheduleFromForm({ type: el("schedule-type").value, onceAt: el("once-at").value, time: el("repeat-time").value, weekday: el("weekday").value, cron: el("cron").value, timezone: el("timezone").value.trim() });
-    const body = { prompt: el("prompt").value.trim(), ...schedule };
-    if (!body.prompt) throw new Error("Prompt is required.");
-    if (!editId && el("job-id").value.trim()) body.job_id = el("job-id").value.trim();
-    await mutate(editId ? `/api/scheduler/jobs/${encodeURIComponent(editId)}` : "/api/scheduler/jobs", editId ? "PUT" : "POST", body);
+    const payload = eventFormPayload({
+      title: el("event-title").value, allDay: el("event-all-day").checked,
+      startDate: el("event-start-date").value, endDate: el("event-end-date").value,
+      startDateTime: el("event-start-time").value, endDateTime: el("event-end-time").value,
+      repeat: el("event-repeat").value, location: el("event-location").value, notes: el("event-notes").value,
+    });
+    const id = el("event-id").value;
+    if (id) payload.expected_version = Number(el("event-version").value);
+    await mutate(id ? `/api/plugins/calendar/events/${encodeURIComponent(id)}` : "/api/plugins/calendar/events", id ? "PATCH" : "POST", payload);
+    el("event-dialog").close();
   } catch (error) { showError(error.message); }
 }
 
-async function deleteSchedule() {
-  const id = el("edit-id").value;
-  if (!id || !confirm(`Delete schedule ${id}?`)) return;
-  try { await mutate(`/api/scheduler/jobs/${encodeURIComponent(id)}`, "DELETE"); } catch (error) { showError(error.message); }
+async function deleteEvent() {
+  const id = el("event-id").value;
+  if (!id || !confirm(`Delete ${el("event-title").value}?`)) return;
+  try {
+    await mutate(`/api/plugins/calendar/events/${encodeURIComponent(id)}?expected_version=${encodeURIComponent(el("event-version").value)}`, "DELETE");
+    el("event-dialog").close();
+  } catch (error) { showError(error.message); }
 }
 
 async function mutate(path, method, body) {
   setBusy(true);
   try {
-    const response = await kit.apiFetch(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
-    if (!response.ok) {
-      let detail = `Scheduler returned HTTP ${response.status}.`;
-      try { const payload = await response.json(); detail = payload.detail || detail; } catch {}
-      throw new Error(detail);
-    }
-    await loadJobs(true, true);
-    el("schedule-dialog").close();
+    await apiJson(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+    await loadAll(true, true);
   } finally { setBusy(false); }
 }
 
 function setBusy(busy) {
   state.busy = busy;
-  el("schedule-form").querySelectorAll("button,input,textarea,select").forEach((node) => { node.disabled = busy; });
-  el("save-button").textContent = busy ? "Saving…" : "Save";
+  document.querySelectorAll("dialog button,dialog input,dialog textarea,dialog select").forEach((node) => { node.disabled = busy; });
+  if (!busy && el("event-dialog").open) {
+    const selected = allEvents().find((value) => value.id === el("event-id").value);
+    if (!selected?.readonly) el("event-form").querySelectorAll("input,textarea,select").forEach((node) => { node.disabled = false; });
+  }
 }
 
-function nextHour() {
-  const date = new Date(Date.now() + 3600000);
-  date.setMinutes(0, 0, 0);
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+function openCalendars() { renderSources(); el("calendars-dialog").showModal(); }
+function sourceRow({ color, name, detail, actions = "" }) {
+  return `<div class="source-row"><i style="--source:${esc(color)}"></i><span><strong>${esc(name)}</strong><small>${esc(detail)}</small></span><div class="source-actions">${actions}</div></div>`;
+}
+
+function renderSources() {
+  const rows = [
+    sourceRow({ color: "#2563eb", name: "My calendar", detail: "Local human events · editable" }),
+    sourceRow({ color: "#0891b2", name: "Scheduler", detail: "Agent schedules · next occurrence overlay" }),
+  ];
+  let googleDetail = "Install Google Workspace plugin to connect";
+  if (state.google.available && !state.google.configured) googleDetail = "Google Workspace installed · connection required";
+  if (state.google.configured) googleDetail = `${state.google.events.length} upcoming event${state.google.events.length === 1 ? "" : "s"}${state.google.error ? ` · ${state.google.error}` : ""}`;
+  rows.push(sourceRow({ color: "#16a34a", name: "Google Calendar", detail: googleDetail }));
+  state.sources.forEach((source) => rows.push(sourceRow({
+    color: source.color, name: source.name,
+    detail: `${source.event_count} event${source.event_count === 1 ? "" : "s"} · ${source.url_host || "iCalendar"}${source.last_error ? ` · ${source.last_error}` : source.last_refreshed ? ` · refreshed ${new Date(source.last_refreshed).toLocaleString()}` : ""}`,
+    actions: `<button class="pl-button" type="button" data-refresh-source="${esc(source.id)}">Refresh</button><button class="pl-button danger" type="button" data-delete-source="${esc(source.id)}">Remove</button>`,
+  })));
+  el("source-list").innerHTML = rows.join("");
+}
+
+async function addSource(event) {
+  event.preventDefault(); setBusy(true);
+  try {
+    await apiJson("/api/plugins/calendar/sources", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: el("source-name").value, url: el("source-url").value, color: el("source-color").value }) });
+    el("source-form").reset(); el("source-color").value = "#7c3aed";
+    await loadAll(true, true); renderSources();
+  } catch (error) { showError(`Could not add calendar: ${error.message}`); await loadAll(true); renderSources(); }
+  finally { setBusy(false); }
+}
+
+async function sourceAction(event) {
+  const refresh = event.target.closest("[data-refresh-source]");
+  const remove = event.target.closest("[data-delete-source]");
+  if (!refresh && !remove) return;
+  const id = refresh?.dataset.refreshSource || remove?.dataset.deleteSource;
+  if (remove && !confirm("Remove this subscribed calendar and its imported events?")) return;
+  setBusy(true);
+  try {
+    await apiJson(`/api/plugins/calendar/sources/${encodeURIComponent(id)}${refresh ? "/refresh" : ""}`, { method: refresh ? "POST" : "DELETE" });
+    await loadAll(true, true); renderSources();
+  } catch (error) { showError(error.message); await loadAll(true); renderSources(); }
+  finally { setBusy(false); }
 }

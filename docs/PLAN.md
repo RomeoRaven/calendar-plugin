@@ -1,42 +1,57 @@
-# Calendar plugin — v0.1 development contract
+# Calendar plugin — v0.2 S1-dev contract
 
-Status: Implementation in isolated S1-dev qualification
+Status: Implementation and qualification isolated to S1-dev
 Date: 2026-08-25
 Target host: accepted RR protoAgent `0.147.0`
 Placement: external plugin (`new with reuse`)
 Tracker: `kanban-c34414e75158`
 
-## Decision
+## Corrected product decision
 
-Calendar is a self-reliant visual workspace over protoAgent Scheduler. It does not change core, duplicate Scheduler's engine, import private host code, or depend on another plugin.
+Calendar is a human event calendar, not a second Scheduler interface. `New event` writes an all-day or timed event to Calendar's own instance-scoped store. Calendar then composes four source types in one workspace:
 
-The upstream `google-plugin` owns Google Calendar access. Calendar v0.1 is instead the local Scheduler workspace.
+1. editable local human events;
+2. read-only HTTPS iCalendar subscriptions;
+3. Google Calendar through `google-plugin`'s public authenticated API when installed and connected;
+4. read-only Scheduler next-occurrence overlays.
 
-## v0.1 scope
+Scheduler remains useful context, but it is not Calendar's event model and Calendar does not edit schedules.
 
-- Native visible Calendar rail and sandboxed plugin view.
-- Month, week, and agenda presentation.
-- One-time jobs at their scheduled ISO time.
-- Recurring jobs represented honestly by Scheduler's authoritative `next_fire` only.
-- Friendly one-time/daily/weekdays/weekly inputs plus custom five-field cron.
-- Create, edit, and delete only through `/api/scheduler/jobs`.
-- Refresh on open, after mutation, and after `scheduler.fired`.
-- No database, cache, provider registry, Google aggregation, full recurrence projection, core edit, or private import.
+## Architecture
 
-Full occurrence expansion is deferred until a separate tranche proves cron/timezone/DST parity. Showing only `next_fire` makes v0.1 useful without inventing recurrence truth.
+- `calendar/calendar.db` under the active documented protoAgent instance root owns local events, source metadata, and imported iCalendar snapshots.
+- Calendar does not modify core databases, read another plugin's files, import private protoAgent modules, or edit core.
+- Browser data access uses authenticated same-origin routes under `/api/plugins/calendar`.
+- Google composition uses only `/api/plugins/google/status` and `/api/plugins/google/upcoming`; the Google plugin continues to own OAuth and provider calls.
+- iCalendar imports validate every HTTPS destination/redirect against public addresses, cap reads at 2 MiB, and persist refresh errors visibly.
+- Feed URLs are never returned by source-list APIs; only their hostname is exposed.
 
-## Security and architecture
+## v0.2 scope
 
-- The iframe page and declared assets are public chrome.
-- Scheduler data calls use `plugin-kit.js` `apiFetch()` and remain bearer-gated.
-- URLs are same-origin and fleet-slug-aware.
-- Fetch failures render an error state and never masquerade as an empty calendar.
-- Scheduler remains authoritative for persistence, recurrence, firing, recovery, and cancellation.
+- Month, week, and agenda views with subtle explicit day borders.
+- Local event create/edit/delete with optimistic versions.
+- All-day/timed semantics, location, notes, and common daily/weekly/monthly/yearly recurrence.
+- Birthday support through yearly all-day events.
+- iCalendar URL add, manual refresh, and remove.
+- Google Calendar upcoming-event overlay through the existing owner plugin when available.
+- Scheduler next occurrence as a visually distinct read-only overlay.
+- Source identity/color and read-only event details.
+- Desktop and pushed-mobile operation.
+
+## Explicit limits
+
+- Imported and Google events are read-only in Calendar.
+- iCalendar refresh is manual in this tranche; automatic background refresh is not claimed.
+- The bounded parser does not claim full RFC 5545 parity. `EXDATE`, `RDATE`, detached recurring overrides, VALARM, attendee workflows, CalDAV writes, and conflict reconciliation are later work.
+- The current Google owner API returns its bounded upcoming window; Calendar does not bypass or expand that contract.
+- Windows, publication, release, and stable promotion remain separately gated.
 
 ## Acceptance
 
 1. Host-free Python and JavaScript tests, Ruff, formatting, syntax, manifest, and diff checks pass.
-2. Exact candidate installs by immutable Git revision on S1-dev only and remains disabled until explicit activation there.
-3. Native rail, month/week/agenda, create/edit/delete, auth handshake, theme, desktop/mobile, error state, restart persistence, disable/uninstall rollback, and direct/routed health pass on S1-dev.
-4. S1-stable source, selector, config, lock, databases, service state, and routes remain unchanged.
-5. Stop for Dennis's hands-on S1-dev review. Release, merge, PC1 work, and stable promotion remain separately gated.
+2. Exact candidate is installed only in the S1 development instance with coherent rollback evidence.
+3. Authenticated live UI proves local timed and birthday event create/edit/delete, source management, real HTTPS iCalendar import/refresh/remove, Scheduler coexistence, month/week/agenda, visible borders, desktop/mobile use, and restart persistence.
+4. Data and source APIs reject anonymous access; Calendar SQLite and existing S1 databases pass integrity checks.
+5. Google source state is correctly detected through the public API. If `google-plugin` is absent on S1-dev, that provider is visibly reported unavailable rather than falsely claimed live.
+6. S1-stable source, selector, config, lock, databases, service state, and routes remain unchanged.
+7. Stop for Dennis's hands-on S1-dev review. Publication, merge, PC1 work, release, and stable promotion remain separately gated.

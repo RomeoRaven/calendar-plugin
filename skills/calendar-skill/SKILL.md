@@ -1,15 +1,17 @@
 ---
 name: calendar
-description: Use Calendar to inspect and manage Scheduler jobs visually.
-summary: Use Calendar to inspect and manage protoAgent Scheduler jobs.
+description: Use Calendar for human events, calendar feeds, and schedule overlays.
+summary: Manage human events and view external calendars with Scheduler context.
 ---
 
 # Calendar
 
-Use the native Calendar rail when the operator wants a visual month, week, or agenda view of protoAgent Scheduler jobs.
+Use the native Calendar rail for real-world events and external calendars.
 
-- One-time jobs appear at their scheduled ISO date and time.
-- Recurring jobs show Scheduler's authoritative next occurrence only; Calendar does not claim a complete recurrence projection.
-- Create, edit, or delete schedules through Calendar's visible controls or the existing Scheduler tools.
-- Treat Scheduler as authoritative for execution, persistence, recurrence, missed-run recovery, and cancellation.
-- Calendar does not provide Google Calendar access. Use the Google plugin for that separate integration.
+- **My calendar** owns editable all-day or timed events, including yearly birthdays and daily, weekly, monthly, or yearly recurrence.
+- **iCalendar feeds** pull read-only events from operator-provided HTTPS or `webcal://` calendar URLs. Google secret iCal addresses, Apple published calendars, and standards-compatible `.ics` feeds use this route.
+- **Google Calendar** appears through the Google Workspace plugin's public API when that plugin is installed and connected.
+- **Scheduler** contributes each agent job's authoritative next occurrence as a read-only overlay; edit the underlying job in Scheduler.
+- Use the `calendar_event_create`, `calendar_event_list`, and `calendar_status` tools when an agent needs to create or inspect human events.
+
+Treat subscribed and Google events as read-only. The v0.2 parser covers common event fields and recurrence, not complete RFC 5545 exception/attendee semantics.

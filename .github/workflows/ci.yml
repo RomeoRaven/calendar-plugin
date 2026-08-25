@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: "22"
       - run: pip install -r requirements-dev.txt ruff
-      - run: ruff check . && ruff format --check tests/
+      - run: ruff check . && ruff format --check .
       - run: pytest -q
       - run: node --check view/calendar.js && node --check view/calendar-model.js
       - run: node --test tests/test_calendar_model.mjs
