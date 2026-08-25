@@ -1,5 +1,6 @@
 ---
 name: calendar
+description: Use Calendar to inspect and manage Scheduler jobs visually.
 summary: Use Calendar to inspect and manage protoAgent Scheduler jobs.
 ---
 

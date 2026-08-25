@@ -24,6 +24,11 @@ def test_manifest_is_release_candidate_shape():
     assert manifest["enabled"] is False
     assert manifest["min_protoagent_version"] == "0.147.0"
     assert manifest["public_paths"] == ["/plugins/calendar/assets/"]
+    assert manifest["subscribes"] == ["scheduler.fired"]
+    skill = yaml.safe_load(
+        (ROOT / "skills" / "calendar-skill" / "SKILL.md").read_text(encoding="utf-8").split("---", 2)[1]
+    )
+    assert skill["description"]
     assert manifest["views"][0]["path"] == "/plugins/calendar/view"
 
 
